@@ -1,4 +1,4 @@
-#include "../src/BPT.h"
+#include "../src/BPT.hpp"
 
 int main() {
     Memory memory("BlockNode.bin", "element.bin");
