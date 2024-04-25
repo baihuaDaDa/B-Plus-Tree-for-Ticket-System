@@ -9,4 +9,5 @@ add_executable(code test/main.cpp
         STLite-baihua/utility.hpp
         STLite-baihua/constantLengthString.hpp
         STLite-baihua/vector.hpp
-        STLite-baihua/exceptions.hpp)
+        STLite-baihua/exceptions.hpp
+)

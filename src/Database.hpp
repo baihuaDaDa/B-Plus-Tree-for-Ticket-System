@@ -11,7 +11,7 @@ namespace baihua {
     using std::ifstream;
     using std::ofstream;
 
-    template<class T, int info_len = 2>
+    template<class T, int block_size = 1, int info_len = 0>
     class Database {
     private:
         string filename;
@@ -39,7 +39,7 @@ namespace baihua {
             file.close();
         }
 
-        // Read the @n-th info into @tmp.
+        // Read the @n-th info into @tmp. (1-base)
         void ReadInfo(int &tmp, int n) {
             if (n > info_len) return;
             file.open(filename, std::ios::in | std::ios::binary);
@@ -48,7 +48,7 @@ namespace baihua {
             file.close();
         }
 
-        // Write @tmp into the @n-th info.
+        // Write @tmp into the @n-th info. (1-base)
         void WriteInfo(int tmp, int n) {
             if (n > info_len) return;
             file.open(filename, std::ios::out | std::ios::in | std::ios::binary);
@@ -57,35 +57,35 @@ namespace baihua {
             file.close();
         }
 
-        // Update the data at @index with the value of @t.
+        // Update the data at @index with the value of @t. (0-base)
         void SingleUpdate(T &t, const int index) {
             file.open(filename, std::ios::out | std::ios::in | std::ios::binary);
-            file.seekp(index);
+            file.seekp(index * sizeofT + info_len * sizeof(int));
             file.write(reinterpret_cast<char *>(&t), sizeofT);
             file.close();
         }
 
         // Update the data at @index with the @size values after the pointer @t.
-        void MultiUpdate(T *t, const int size, const int index) {
+        void MultiUpdate(T *t, const int block_num) {
             file.open(filename, std::ios::out | std::ios::in | std::ios::binary);
-            file.seekp(index);
-            file.write(reinterpret_cast<char *>(t), size * sizeofT);
+            file.seekp(block_num * block_size * sizeofT + info_len * sizeof(int));
+            file.write(reinterpret_cast<char *>(t), block_size * sizeofT);
             file.close();
         }
 
         // Read the data at @index into @t
         void SingleRead(T &t, const int index) {
             file.open(filename, std::ios::in | std::ios::binary);
-            file.seekg(index);
+            file.seekg(index * sizeofT + info_len * sizeof(int));
             file.read(reinterpret_cast<char *>(&t), sizeofT);
             file.close();
         }
 
         // Read the data at @index into the space the pointer @t points to, and the size of the data is @size.
-        void MultiRead(T *t, const int size, const int index) {
+        void MultiRead(T *t, const int block_num) {
             file.open(filename, std::ios::in | std::ios::binary);
-            file.seekg(index);
-            file.read(reinterpret_cast<char *>(t), size * sizeofT);
+            file.seekg(block_num * block_size * sizeofT + info_len * sizeof(int));
+            file.read(reinterpret_cast<char *>(t), block_size * sizeofT);
             file.close();
         }
 
