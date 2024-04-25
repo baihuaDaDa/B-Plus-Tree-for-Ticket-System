@@ -12,7 +12,11 @@ Developer Log
 - Find something to improve in my `vector.hpp`. That is, deallocating as soon as the size equals to half of the storage has low efficiency. However, that doesn't matter here.
 - Add `test.cpp` and some sample data for test.
 
-### 2024/4/25: 
+### 2024/4/25: `BinarySearch`, `BptFind`, and the function `Find`
 - Maybe we can use `hash_table` to record strings;
 - (Finally still) Decide to use `Node` and `Leaf` to record non-leaf nodes and leaf nodes separately;
 - Finish `search` part, including `BinarySearchPair`, `BinarySearchIndex`, `FindElement`, `FindIndex`;
+- Finish the function `Find`;
+- Add `SingleAppend` and `MultiAppend` functions to the class `Database`.
+
+### 2024/4/26: `Insert` and `Delete`
