@@ -5,7 +5,7 @@
 
 namespace baihua {
 
-    template<class T1, class T2, int (*CmpT1)(const T1 &, const T1 &), int (*CmpT2)(const T2 &, const T2 &)>
+    template<class T1, class T2, int (*CmpT1)(const T1 &, const T1 &) = nullptr, int (*CmpT2)(const T2 &, const T2 &) = nullptr>
     class pair {
     public:
         T1 first;

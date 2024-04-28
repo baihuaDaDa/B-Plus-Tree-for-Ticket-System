@@ -65,7 +65,7 @@ namespace baihua {
             return index;
         }
 
-        int MultiAppend(T *t) {
+        int BlockAppend(T *t) {
             file.open(filename, std::ios::app | std::ios::binary);
             int block_num = (int(file.tellp()) - info_len * sizeof(int)) / sizeofT / block_size;
             file.write(reinterpret_cast<char *>(t), sizeofT * block_size);
@@ -82,7 +82,7 @@ namespace baihua {
         }
 
         // Update the data at @index with the @size values after the pointer @t.
-        void MultiUpdate(T *t, const int block_num) {
+        void BlockUpdate(T *t, const int block_num) {
             file.open(filename, std::ios::out | std::ios::in | std::ios::binary);
             file.seekp(block_num * block_size * sizeofT + info_len * sizeof(int));
             file.write(reinterpret_cast<char *>(t), block_size * sizeofT);
@@ -98,7 +98,7 @@ namespace baihua {
         }
 
         // Read the data at @index into the space the pointer @t points to, and the size of the data is @size.
-        void MultiRead(T *t, const int block_num) {
+        void BlockRead(T *t, const int block_num) {
             file.open(filename, std::ios::in | std::ios::binary);
             file.seekg(block_num * block_size * sizeofT + info_len * sizeof(int));
             file.read(reinterpret_cast<char *>(t), block_size * sizeofT);

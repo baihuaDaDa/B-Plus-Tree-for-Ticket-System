@@ -1,13 +1,22 @@
 #include "../src/BPT.hpp"
+#include "../STLite-baihua/constantLengthString.hpp"
+
+namespace baihua {
+    int CmpInt(const int &x, const int &y) {
+        if (x < y) return -1;
+        else if (x > y) return 1;
+        else return 0;
+    }
+}
 
 int main() {
-    Memory memory("BlockNode.bin", "element.bin");
+    baihua::BPT<baihua::ConstLenStr<65>, int, baihua::CmpStr, baihua::CmpInt> memory("string64-int");
     int n, value;
-    string instruction;
-    int find_count = 0;
+    std::string instruction;
+    baihua::ConstLenStr<65> index;
+    baihua::vector<int> result;
     std::cin >> n;
     for (int i = 1; i <= n; i++) {
-        char index[66] = {};
         std::cin >> instruction;
         if (instruction == "insert") {
             std::cin >> index >> value;
@@ -22,7 +31,9 @@ int main() {
         if (instruction == "find") {
             std::cin >> index;
 //            std::cout << ++find_count << '|';
-            memory.Find(index);
+            result = memory.Find(index);
+            for (int & elem : result) std::cout << elem << ' ';
+            std::cout << '\n';
 //            std::cout << memory.get_num_of_block() << std::endl;
         }
     }
