@@ -30,12 +30,11 @@ namespace baihua {
             return tmp_file.good();
         }
 
-        void initialize(const string &FN = "") {
+        void initialize(int info = 0, const string &FN = "") {
             if (FN != "") filename = FN;
             file.open(filename, std::ios::out | std::ios::binary);
-            int tmp = 0;
             for (int i = 0; i < info_len; ++i)
-                file.write(reinterpret_cast<char *>(&tmp), sizeof(int));
+                file.write(reinterpret_cast<char *>(&info), sizeof(int));
             file.close();
         }
 

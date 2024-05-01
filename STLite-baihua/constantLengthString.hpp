@@ -130,13 +130,11 @@ namespace baihua {
 
     template<int length>
     std::istream &operator>>(std::istream &in, ConstLenStr<length> &str1) {
-        char tmp;
-        in >> tmp;
-        size_t i = 0;
-        for (i = 0; tmp != '\n' && tmp != ' '; in >> tmp, ++i) {
-            str1.str[i] = tmp;
-        }
-        str1.size = i;
+        string str;
+        in >> str;
+        for (int i = 0; i < str.size(); ++i)
+            str1.str[i] = str[i];
+        str1.size = str.size();
         return in;
     }
 
