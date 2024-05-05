@@ -34,6 +34,15 @@ Developer Log
   - *Fixed:* the `head_pos` and `root_pos` aren't correctly initialized;
 
 ### 2024/5/2: `Insert`, `Delete`
-- **Test** `Find`
-  - *Fixed:* the `BinarySearchFirstBigger`, `BinarySearchLastSmaller` cannot meet the objectives when there is more than one identical data;
-- 
+- **Test** `Find`:
+  - *Fixed:* the `BinarySearchFirstBigger`, `BinarySearchLastSmaller` cannot meet the objectives when there is more than one identical data.
+- ***(Notice)*** In `Delete` the key in the node should be changed when the first element of the block is changed, and the node may not be the direct leaf node but someone above;
+- **Work on** `Delete`:
+  - ***(Change ideas)*** nodes can only adopt children from and merge with the nodes with the same parent.
+
+### 2024/5/5: `Delete`
+- **Work on** `Delete`:
+  - *Finish* `LeafPreAdopt`, `LeafNextAdopt`, `LeafPreMerge`, `LeafNextMerge`;
+  - ***(Change ideas)*** the adoption and merge of non-leaf nodes is not the same as leaf nodes;
+  - ***(To be improved)*** we can directly save the ancestor nodes instead of their addresses to reduce file reading times, but remember some node will be changed when `eleme_pos == 0`; 
+  - ***(To be improved)*** we can equally divide the two blocks instead of adopt just one child when adopting;
