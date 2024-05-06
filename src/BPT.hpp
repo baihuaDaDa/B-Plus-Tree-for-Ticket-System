@@ -518,21 +518,42 @@ namespace baihua {
         }
 
         void DeleteAdjust(bool if_next) {
-            while (!father_info.empty()) {
+            bool if_pre = true, flag = false;
+            while (father_info.size() > 1) {
                 int father_pos = father_info.back().first;
                 int father_index = father_info.back().second + if_next;
                 father_info.pop_back();
-                Node node;
-                memory_node.SingleRead(node, father_pos);
+                Node &node = father.back();
+                father.pop_back();
                 for (int i = father_index; i < node.size; ++i) {
                     node.son[i] = node.son[i + 1];
                     node.key[i - 1] = node.key[i];
                 }
                 --node.size;
                 if (node.size + 1 < (M + 1) >> 1) {
-
+                    if (NodePreAdopt(node, father_pos, if_pre)) return;
+                    if (NodeNextAdopt(node, father_pos, if_next)) return;
+                    if (if_next) NodeNextMerge(node, father_pos);
+                    else NodePreMerge(node, father_pos);
+                } else {
+                    memory_node.SingleUpdate(node, father_pos);
+                    flag = true;
+                    break;
                 }
             }
+            if (flag) return;
+            int root_index = father_info.back().second + if_next;
+            Node &root = father.back();
+            for (int i = root_index; i < root.size; ++i) {
+                root.son[i] = root.son[i + 1];
+                root.key[i - 1] = root.key[i];
+            }
+            --root.size;
+            if (root.size == 0) {
+                if (root.is_upon_leaf) root_pos = -1;
+                else root_pos = root.son[0];
+                memory_node.WriteInfo(root_pos, 1);
+            } else memory_node.SingleUpdate(root, root_pos);
         }
 
     };
