@@ -47,7 +47,9 @@ namespace baihua {
 
         int root_pos;
         int head_pos;
-        vector<pair<int, int>> father; // <position, index>
+        vector<Node> father; // father_node
+        int target_index = -1; // the position of the node that includes the target key
+        vector<pair<int, int>> father_info; // <position, index>
         Database<Node, 1, 1> memory_node; // record the position of the root, if none, return -1.
         Database<Leaf, 1, 1> memory_leaf; // record the position of the head node, if none, return -1.
         Database<value_type, L> database;
@@ -146,7 +148,7 @@ namespace baihua {
             int elem_pos = BinarySearchLastSmaller(element, data, leaf.size);
             if (elem_pos < 0 || CmpPair(element, data[elem_pos]) != 0) return; // Case 1
             --leaf.size;
-            if (elem_pos == 0) UpdateKey(data[0], data[1], true);
+            if (elem_pos == 0) UpdateKey(data[1]);
             for (int i = elem_pos; i < leaf.size; ++i)
                 data[i] = data[i + 1];
             if (leaf.size >= ((L + 1) >> 1)) { // Case 2
@@ -237,18 +239,24 @@ namespace baihua {
         }
 
         int FindElement(const value_type &element) {
+            target_index = -1;
             father.clear();
+            father_info.clear();
             Node node;
             if (root_pos == -1) return head_pos;
             int r_pos = root_pos;
             memory_node.SingleRead(node, r_pos);
             while (true) {
                 int result = BinarySearchLastSmaller(element, node.key, node.size);
+                if (target_index == -1 && result >= 0 && CmpPair(node.key[result], element) == 0)
+                    target_index = father.size();
                 if (node.is_upon_leaf) {
-                    father.push_back(pair<int, int>(r_pos, result + 1));
+                    father_info.push_back(pair<int, int>(r_pos, result + 1));
+                    father.push_back(node);
                     return node.son[result + 1];
                 } else {
-                    father.push_back(pair<int, int>(r_pos, result + 1));
+                    father_info.push_back(pair<int, int>(r_pos, result + 1));
+                    father.push_back(node);
                     r_pos = node.son[result + 1];
                     memory_node.SingleRead(node, r_pos);
                 }
@@ -270,10 +278,11 @@ namespace baihua {
             Node node;
             pair<int, int> father_node{-1, -1};
             bool flag = false;
-            while (!father.empty()) {
-                father_node = father.back();
+            while (!father_info.empty()) {
+                father_node = father_info.back();
+                node = father.back();
+                father_info.pop_back();
                 father.pop_back();
-                memory_node.SingleRead(node, father_node.first);
                 for (int i = father_node.second + 1; i <= node.size; ++i) {
                     node.son[i + 1] = node.son[i];
                     node.key[i] = node.key[i - 1];
@@ -317,39 +326,18 @@ namespace baihua {
 
         // When changing the first element of the block, we need to change the corresponding key in the tree.
         // @if_already is to tell the function whether the ancestors of the element are already pushed into the stack.
-        void UpdateKey(const value_type &original_key, const value_type &new_key, bool if_already) {
-            if (if_already) {
-                pair<int, int> father_node;
-                Node node;
-                while (true) {
-                    father_node = father.back();
-                    father.pop_back();
-                    memory_node.SingleRead(node, father_node.first);
-                    if (father_node.second > 0 && CmpPair(node.key[father_node.second - 1], original_key) == 0) {
-                        node.key[father_node.second - 1] = new_key;
-                        memory_node.SingleUpdate(node, father_node.first);
-                        return;
-                    }
-                }
-            } else {
-                Node node;
-                int r_pos = root_pos;
-                memory_node.SingleRead(node, r_pos);
-                while (true) {
-                    int result = BinarySearchLastSmaller(original_key, node.key, node.size);
-                    if (result >= 0 && CmpPair(node.key[result], original_key) == 0) {
-                        node.key[result] = new_key;
-                        memory_node.SingleUpdate(node, r_pos);
-                        return;
-                    } else r_pos = node.son[result + 1];
-                }
-            }
+        void UpdateKey(const value_type &new_key) {
+            if (target_index == -1) return;
+            Node &node = father[target_index];
+            pair<int, int> father_node = father_info[target_index];
+            node.key[father_node.second - 1] = new_key;
+            memory_node.SingleUpdate(node, father_node.first);
         }
 
         // Adopt children from the appropriate neighbour blocks, if not, return false.
         bool LeafPreAdopt(Leaf &leaf, const int leaf_pos, value_type *data, bool &if_pre) {
             if (leaf.pre == -1) return if_pre = false;
-            pair<int, int> father_node = father.back();
+            pair<int, int> father_node = father_info.back();
             if (father_node.second == 0) return if_pre = false;
             Leaf pre_leaf;
             memory_leaf.SingleRead(pre_leaf, leaf.pre);
@@ -362,8 +350,7 @@ namespace baihua {
                 for (int i = leaf.size - 1; i >= 1; --i)
                     data[i] = data[i - 1];
                 data[0] = pre_data[pre_leaf.size];
-                Node _father;
-                memory_node.SingleRead(_father, father_node.first);
+                Node &_father = father.back();
                 _father.key[father_node.second - 1] = data[0];
                 database.BlockUpdate(data, leaf.address);
                 memory_leaf.SingleUpdate(leaf, leaf_pos);
@@ -374,9 +361,8 @@ namespace baihua {
 
         bool LeafNextAdopt(Leaf &leaf, const int leaf_pos, value_type *data, bool &if_next) {
             if (leaf.next == -1) return if_next = false;
-            pair<int, int> father_node = father.back();
-            Node _father;
-            memory_node.SingleRead(_father, father_node.first);
+            pair<int, int> father_node = father_info.back();
+            Node &_father = father.back();
             if (father_node.second == _father.size) return if_next = false;
             Leaf next_leaf;
             memory_leaf.SingleRead(next_leaf, leaf.next);
@@ -398,8 +384,8 @@ namespace baihua {
         }
 
         /* Merge two half blocks.
-         * Pay attention to merge the present node into the next or the previous node
-         * so that we can easily find the ancestors of the erased node to modify the corresponding key.
+         * Pay attention to merge the next node into the previous node
+         * so that we needn't update @head_pos in the file.
          **/
         void LeafPreMerge(Leaf &leaf, const int leaf_pos, value_type *data) {
             Leaf pre_leaf;
@@ -440,9 +426,10 @@ namespace baihua {
         }
 
         // Adopt keys from the appropriate neighbour nodes, if not, return false.
-        bool NodePreAdopt(Node &node, const int node_pos, bool &if_pre, const value_type &first_key) {
+        bool NodePreAdopt(Node &node, const int node_pos, bool &if_pre) {
             if (node.pre == -1) return if_pre = false;
-            pair<int, int> father_node = father.back();
+            Node &_father = father.back();
+            pair<int, int> father_node = father_info.back();
             if (father_node.second == 0) return if_pre = false;
             Node pre_node;
             memory_node.SingleRead(pre_node, node.pre);
@@ -452,88 +439,89 @@ namespace baihua {
                     if (i > 0) node.key[i] = node.key[i - 1];
                 }
                 node.son[0] = pre_node.son[pre_node.size];
-                node.key[0] = first_key;
+                node.key[0] = _father.key[father_node.second - 1];
+                _father.key[father_node.second - 1] = pre_node.key[pre_node.size - 1];
                 --pre_node.size;
                 ++node.size;
                 memory_node.SingleUpdate(pre_node, node.pre);
-                Node _father;
-                memory_node.SingleRead(_father, father_node.first);
-                _father.key[father_node.second - 1] = first_key;
                 memory_node.SingleUpdate(node, node_pos);
-                memory_node.SingleUpdate(_father, father_node.first);
                 return true;
             } else return false;
         }
 
-        bool NodeNextAdopt(Leaf &node, const int node_pos, bool &if_next, const value_type &first_key) {
+        bool NodeNextAdopt(Leaf &node, const int node_pos, bool &if_next) {
             if (node.next == -1) return if_next = false;
-            pair<int, int> father_node = father.back();
-            Node _father;
-            memory_node.SingleRead(_father, father_node.first);
+            Node &_father = father.back();
+            pair<int, int> father_node = father_info.back();
             if (father_node.second == _father.size) return if_next = false;
             Node next_node;
             memory_node.SingleRead(next_node, node.next);
             if (next_node.size + 1 > (L + 1) >> 1) {
+                node.key[node.size] = _father.key[father_node.second - 1];
+                node.son[node.size + 1] = next_node.son[0];
+                _father.key[father_node.second - 1] = next_node.key[0];
                 for (int i = 0; i < next_node.size; ++i) {
                     next_node.son[i] = next_node.son[i + 1];
                     if (i < next_node.size - 1) next_node.key[i] = next_node.key[i + 1];
                 }
-                database.BlockUpdate(data, node.address);
-                memory_leaf.SingleUpdate(node, node_pos);
-                database.BlockUpdate(next_data, next_node.address);
-                memory_leaf.SingleUpdate(next_node, node.next);
-                memory_node.SingleUpdate(_father, father_node.first);
+                memory_node.SingleUpdate(node, node_pos);
+                memory_node.SingleUpdate(next_node, node.next);
                 return true;
             } else return false;
         }
 
-        /* Merge two half blocks.
+
+        /* Merge two half nodes.
          * Pay attention to merge the present node into the next or the previous node
          * so that we can easily find the ancestors of the erased node to modify the corresponding key.
          **/
-        void NodePreMerge(Leaf &leaf, const int leaf_pos, value_type *data) {
-            Leaf pre_leaf;
-            memory_leaf.SingleRead(pre_leaf, leaf.pre);
-            value_type pre_data[L];
-            database.BlockRead(pre_data, pre_leaf.address);
-            for (int i = 0, j = pre_leaf.size; i < leaf.size; ++i, ++j)
-                pre_data[j] = data[i];
-            pre_leaf.size += leaf.size;
-            pre_leaf.next = leaf.next;
-            if (leaf.next != -1) {
-                Leaf next_leaf;
-                memory_leaf.SingleRead(next_leaf, leaf.next);
-                next_leaf.pre = leaf.pre;
-                memory_leaf.SingleUpdate(next_leaf, leaf.next);
+        void NodePreMerge(Node &node, const int node_pos) {
+            Node pre_node;
+            memory_node.SingleRead(pre_node, node.pre);
+            Node &_father = father.back();
+            pair<int, int> father_node = father_info.back();
+            for (int i = 0, j = pre_node.size + 1; i <= node.size; ++i, ++j) {
+                pre_node.son[j] = node.son[i];
+                if (i < node.size) pre_node.key[j] = node.key[i];
             }
-            memory_leaf.SingleUpdate(pre_leaf, leaf.pre);
-            database.BlockUpdate(pre_data, pre_leaf.address);
+            pre_node.key[pre_node.size] = _father.key[father_node.second - 1];
+            pre_node.size += node.size;
+            pre_node.next = node.next;
+            if (node.next != -1) {
+                Node next_node;
+                memory_node.SingleRead(next_node, node.next);
+                next_node.pre = node.pre;
+                memory_node.SingleUpdate(next_node, node.next);
+            }
+            memory_node.SingleUpdate(pre_node, node.pre);
         }
 
-        void NodeNextMerge(Leaf &leaf, const int leaf_pos, value_type *data) {
-            Leaf next_leaf;
-            memory_leaf.SingleRead(next_leaf, leaf.next);
-            value_type next_data[L];
-            database.BlockRead(next_data, next_leaf.address);
-            for (int i = leaf.size, j = 0; j < next_leaf.size; ++i, ++j)
-                data[i] = next_data[j];
-            leaf.size += next_leaf.size;
-            leaf.next = next_leaf.next;
-            if (leaf.next != -1) {
-                Leaf _next_leaf;
-                memory_leaf.SingleRead(_next_leaf, leaf.next);
-                _next_leaf.pre = leaf_pos;
-                memory_leaf.SingleUpdate(_next_leaf, leaf.next);
+        void NodeNextMerge(Node &node, const int node_pos) {
+            Node next_node;
+            memory_node.SingleRead(next_node, node.next);
+            Node &_father = father.back();
+            pair<int, int> father_node = father_info.back();
+            for (int i = node.size + 1, j = 0; j <= next_node.size; ++i, ++j) {
+                node.son[i] = next_node.son[j];
+                if (j < next_node.size) node.key[i] = next_node.key[j];
             }
-            memory_leaf.SingleUpdate(leaf, leaf_pos);
-            database.BlockUpdate(data, leaf.address);
+            node.key[node.size] = _father.key[father_node.second];
+            node.size += next_node.size;
+            node.next = next_node.next;
+            if (node.next != -1) {
+                Node _next_node;
+                memory_node.SingleRead(_next_node, node.next);
+                _next_node.pre = node_pos;
+                memory_node.SingleUpdate(_next_node, node.next);
+            }
+            memory_node.SingleUpdate(node, node_pos);
         }
 
-        void DeleteAdjust(bool if_next, const value_type &first_key) {
-            while (!father.empty()) {
-                int father_pos = father.back().first;
-                int father_index = father.back().second + if_next;
-                father.pop_back();
+        void DeleteAdjust(bool if_next) {
+            while (!father_info.empty()) {
+                int father_pos = father_info.back().first;
+                int father_index = father_info.back().second + if_next;
+                father_info.pop_back();
                 Node node;
                 memory_node.SingleRead(node, father_pos);
                 for (int i = father_index; i < node.size; ++i) {

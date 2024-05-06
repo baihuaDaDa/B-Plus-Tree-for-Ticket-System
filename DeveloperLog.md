@@ -31,7 +31,7 @@ Developer Log
 - **Test** `Insert`: 
   - *Fixed:* the first leaf isn't correctly created;
   - *Fixed:* the operator `>>` isn't correctly overloaded;
-  - *Fixed:* the `head_pos` and `root_pos` aren't correctly initialized;
+  - *Fixed:* the `head_pos` and `root_pos` aren't correctly initialized.
 
 ### 2024/5/2: `Insert`, `Delete`
 - **Test** `Find`:
@@ -44,5 +44,11 @@ Developer Log
 - **Work on** `Delete`:
   - *Finish* `LeafPreAdopt`, `LeafNextAdopt`, `LeafPreMerge`, `LeafNextMerge`;
   - ***(Change ideas)*** the adoption and merge of non-leaf nodes is not the same as leaf nodes;
-  - ***(To be improved)*** we can directly save the ancestor nodes instead of their addresses to reduce file reading times, but remember some node will be changed when `eleme_pos == 0`; 
-  - ***(To be improved)*** we can equally divide the two blocks instead of adopt just one child when adopting;
+  - **[Checked]** ***(To be improved)*** we can directly save the ancestor nodes instead of their addresses to reduce file reading times, but remember some node will be changed when `eleme_pos == 0`; 
+  - ***(To be improved)*** we can equally divide the two blocks instead of adopt just one child when adopting.
+
+### 2024/5/6: `Delete`
+- **Work on** `Delete`:
+  - **[Checked]** ***(To be improved)*** we can save the position of the node that includes the target key so that we needn't find the target key again in `UpdateKey`;
+  - *Finish* `NodePreAdopt`, `NodeNextAdopt`, `NodePreMerge`, `NodeNextMerge`;
+  - *Finish* `DeleteAdjust`.
