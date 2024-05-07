@@ -52,3 +52,12 @@ Developer Log
   - **[Checked]** ***(To be improved)*** we can save the position of the node that includes the target key so that we needn't find the target key again in `UpdateKey`;
   - *Finish* `NodePreAdopt`, `NodeNextAdopt`, `NodePreMerge`, `NodeNextMerge`;
   - *Finish* `DeleteAdjust`.
+
+### 2024/5/7: Test
+- **Test** `Insert` and `Find`:
+  - *Fixed*: fix the problem about appending data to the end of the file;
+- **Test** `Delete`:
+  - *Fixed*: the size of merged nodes is not correctly updated (one key less);
+  - *Fixed*: `if_next` is not reset in `DeleteAdjust`;
+- **Test** `baihua::vector`:
+  - Temporarily use `std::vector` as an alternative;

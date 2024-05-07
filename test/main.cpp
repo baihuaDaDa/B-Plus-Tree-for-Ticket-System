@@ -10,7 +10,8 @@ namespace baihua {
 }
 
 int main() {
-    freopen("../test/trivial.in", "r", stdin);
+    freopen("../test/test.in", "r", stdin);
+    freopen("../test/ans.out", "w", stdout);
     baihua::BPT<baihua::ConstLenStr<65>, int, baihua::CmpStr, baihua::CmpInt> memory("string64-int");
     int n, value;
     std::string instruction;

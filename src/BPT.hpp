@@ -3,9 +3,12 @@
 
 #include "Database.hpp"
 #include "../STLite-baihua/utility.hpp"
-#include "../STLite-baihua/vector.hpp"
+//#include "../STLite-baihua/vector.hpp"
+#include <vector>
 
 namespace baihua {
+
+    using std::vector;
 
     template<class Index, class Value, int (*CmpIndex)(const Index &, const Index &), int (*CmpValue)(const Value &,
                                                                                                       const Value &)>
@@ -485,7 +488,7 @@ namespace baihua {
                 if (i < node.size) pre_node.key[j] = node.key[i];
             }
             pre_node.key[pre_node.size] = _father.key[father_node.second - 1];
-            pre_node.size += node.size;
+            pre_node.size += node.size + 1;
             pre_node.next = node.next;
             if (node.next != -1) {
                 Node next_node;
@@ -506,7 +509,7 @@ namespace baihua {
                 if (j < next_node.size) node.key[i] = next_node.key[j];
             }
             node.key[node.size] = _father.key[father_node.second];
-            node.size += next_node.size;
+            node.size += next_node.size + 1;
             node.next = next_node.next;
             if (node.next != -1) {
                 Node _next_node;
@@ -522,8 +525,9 @@ namespace baihua {
             while (father_info.size() > 1) {
                 int father_pos = father_info.back().first;
                 int father_index = father_info.back().second + if_next;
+                if_next = true;
                 father_info.pop_back();
-                Node &node = father[father.size() - 1];
+                Node node = father[father.size() - 1];
                 father.pop_back();
                 for (int i = father_index; i < node.size; ++i) {
                     node.son[i] = node.son[i + 1];

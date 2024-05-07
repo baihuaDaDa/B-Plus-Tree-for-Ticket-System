@@ -431,6 +431,7 @@ namespace baihua {
             _size = 0;
             _storage = 0;
             T *ptr = alloc.allocate(1);
+            _begin = _end = iterator(ptr, this);
         }
 
         /**
