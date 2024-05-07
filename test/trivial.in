@@ -1,9 +1,39 @@
-8
-insert a 1
-insert a 2
+38
+insert a 11
+insert a 21
 find a
-insert b 1
-insert b 3
-insert b 1
+insert b 12
+insert b 32
+insert b 12
 find a
 find b
+insert a 31
+insert b 22
+insert c 13
+insert c 23
+insert c 33
+find a
+find b
+find c
+delete a 11
+delete a 12
+delete b 12
+delete c 13
+find a
+find b
+find c
+insert a 11
+delete a 31
+delete a 21
+delete a 11
+find a
+find b
+delete b 12
+delete b 22
+delete b 32
+find b
+find c
+delete c 13
+delete c 23
+delete c 33
+find c

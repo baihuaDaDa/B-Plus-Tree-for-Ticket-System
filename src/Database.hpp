@@ -57,7 +57,8 @@ namespace baihua {
         }
 
         int SingleAppend(T &t) {
-            file.open(filename, std::ios::app | std::ios::binary);
+            file.open(filename, std::ios::out | std::ios::in | std::ios::binary);
+            file.seekp(0, std::ios::end);
             int index = (int(file.tellp()) - info_len * sizeof(int)) / sizeofT;
             file.write(reinterpret_cast<char *>(&t), sizeofT);
             file.close();
@@ -65,7 +66,8 @@ namespace baihua {
         }
 
         int BlockAppend(T *t) {
-            file.open(filename, std::ios::app | std::ios::binary);
+            file.open(filename, std::ios::out | std::ios::in | std::ios::binary);
+            file.seekp(0, std::ios::end);
             int block_num = (int(file.tellp()) - info_len * sizeof(int)) / sizeofT / block_size;
             file.write(reinterpret_cast<char *>(t), sizeofT * block_size);
             file.close();

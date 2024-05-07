@@ -33,7 +33,8 @@ int main() {
             std::cin >> index;
 //            std::cout << ++find_count << '|';
             result = memory.Find(index);
-            for (int & elem : result) std::cout << elem << ' ';
+            if (result.empty()) std::cout << "null";
+            else for (int & elem : result) std::cout << elem << ' ';
             std::cout << '\n';
 //            std::cout << memory.get_num_of_block() << std::endl;
         }
