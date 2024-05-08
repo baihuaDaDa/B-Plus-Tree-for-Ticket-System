@@ -10,8 +10,8 @@ namespace baihua {
 }
 
 int main() {
-    freopen("../test/completeness/completeness.in", "r", stdin);
-    freopen("../test/ans.out", "w", stdout);
+//    freopen("../test/completeness/completeness.in", "r", stdin);
+//    freopen("../test/ans.out", "w", stdout);
     baihua::BPT<baihua::ConstLenStr<65>, int, baihua::CmpStr, baihua::CmpInt> memory("string64-int");
     int n, value;
     std::string instruction, buffer;
