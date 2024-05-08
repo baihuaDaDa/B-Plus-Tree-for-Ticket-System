@@ -60,4 +60,15 @@ Developer Log
   - *Fixed*: the size of merged nodes is not correctly updated (one key less);
   - *Fixed*: `if_next` is not reset in `DeleteAdjust`;
 - **Test** `baihua::vector`:
-  - Temporarily use `std::vector` as an alternative;
+  - Temporarily use `std::vector` as an alternative.
+
+### 2024/5/8: Test
+- *Fixed*: problem in inputting the data;
+- *Fixed*: problem in breaking leaf nodes, now changed into just inserting and then breaking;
+- *Fixed*: the direction of moving the data in the nodes is converse in the function `InsertAdjust`;
+- *Fixed*: `head_pos` is not updated when deleting the last element and then deleting the last block;
+- *Fixed*: `node.size` and `next_node.size` aren't updated in `NodeNextAdopt`;
+- *Fixed*: father nodes are not updated in `NodePreAdopt` and `NodeNextAdopt`, as they directly return in `DeleteAdjust`;
+- *Fixed*: some naive mistake in `NodeNextAdopt`, `father_node.second` instead of `father_node.second - 1`;
+- *Fixed*: there is misalignment when displacing data in `NodePreAdopt`.
+- ***Congratulations!*** Pass all the test points!

@@ -55,7 +55,7 @@ namespace baihua {
         vector<pair<int, int>> father_info; // <position, index>
         Database<Node, 1, 1> memory_node; // record the position of the root, if none, return -1.
         Database<Leaf, 1, 1> memory_leaf; // record the position of the head node, if none, return -1.
-        Database<value_type, L> database;
+        Database<value_type, L + 1> database;
 
     public:
         BPT(const string &filename) : memory_node(filename + "_BptNode.bin"),
@@ -80,7 +80,7 @@ namespace baihua {
             int leaf_pos = FindElement(element);
             if (leaf_pos == -1) {
                 Leaf new_leaf{1, -1, -1};
-                value_type data[L];
+                value_type data[L + 1];
                 data[0] = element;
                 new_leaf.address = head_pos = database.BlockAppend(data);
                 memory_leaf.WriteInfo(head_pos, 1);
@@ -89,35 +89,23 @@ namespace baihua {
             }
             Leaf leaf;
             memory_leaf.SingleRead(leaf, leaf_pos);
-            value_type data[L];
+            value_type data[L + 1];
             database.BlockRead(data, leaf.address);
             int elem_pos = BinarySearchLastSmaller(element, data, leaf.size);
             if (elem_pos >= 0 && CmpPair(element, data[elem_pos]) == 0) return; // Case 2
-            if (leaf.size < L) { // Case 1
-                for (int i = leaf.size - 1; i >= elem_pos + 1; --i)
-                    data[i + 1] = data[i];
-                ++leaf.size;
-                data[elem_pos + 1] = element;
+            for (int i = leaf.size - 1; i >= elem_pos + 1; --i)
+                data[i + 1] = data[i];
+            ++leaf.size;
+            data[elem_pos + 1] = element;
+            if (leaf.size <= L) { // Case 1
                 database.BlockUpdate(data, leaf.address);
                 memory_leaf.SingleUpdate(leaf, leaf_pos);
             } else { // Case 3
-                value_type new_block_data[L] = {};
+                value_type new_block_data[L + 1] = {};
                 leaf.size = ((L + 1) >> 1);
                 Leaf new_leaf{L + 1 - leaf.size, leaf_pos, leaf.next};
-                if (elem_pos + 1 < ((L + 1) >> 1)) {
-                    for (int i = leaf.size - 2; i >= elem_pos + 1; --i)
-                        data[i + 1] = data[i];
-                    data[elem_pos + 1] = element;
-                    for (int i = leaf.size - 1, j = 0; i < L; ++i, ++j)
-                        new_block_data[j] = data[i];
-                } else {
-                    int j = 0;
-                    for (int i = leaf.size; i <= elem_pos; ++i, ++j)
-                        new_block_data[j] = data[i];
-                    new_block_data[j++] = element;
-                    for (int i = elem_pos + 1; i < L; ++i, ++j)
-                        new_block_data[j] = data[i];
-                }
+                for (int i = leaf.size, j = 0; i < L + 1; ++i, ++j)
+                    new_block_data[j] = data[i];
                 new_leaf.address = database.BlockAppend(new_block_data);
                 database.BlockUpdate(data, leaf.address);
                 leaf.next = memory_leaf.SingleAppend(new_leaf);
@@ -126,7 +114,7 @@ namespace baihua {
                     Leaf next_leaf;
                     memory_leaf.SingleRead(next_leaf, new_leaf.next);
                     next_leaf.pre = leaf.next;
-                    memory_leaf.SingleUpdate(new_leaf, new_leaf.next);
+                    memory_leaf.SingleUpdate(next_leaf, new_leaf.next);
                 }
                 // Case 4
                 InsertAdjust(leaf_pos, leaf.next, new_block_data[0]);
@@ -146,7 +134,7 @@ namespace baihua {
             int leaf_pos = FindElement(element);
             Leaf leaf;
             memory_leaf.SingleRead(leaf, leaf_pos);
-            value_type data[L];
+            value_type data[L + 1];
             database.BlockRead(data, leaf.address);
             int elem_pos = BinarySearchLastSmaller(element, data, leaf.size);
             if (elem_pos < 0 || CmpPair(element, data[elem_pos]) != 0) return; // Case 1
@@ -160,8 +148,13 @@ namespace baihua {
             } else {
                 // Case 3
                 if (leaf.pre == -1 && leaf.next == -1) {
-                    database.BlockUpdate(data, leaf.address);
-                    memory_leaf.SingleUpdate(leaf, leaf_pos);
+                    if (leaf.size == 0) {
+                        head_pos = -1;
+                        memory_leaf.WriteInfo(head_pos, 1);
+                    } else {
+                        database.BlockUpdate(data, leaf.address);
+                        memory_leaf.SingleUpdate(leaf, leaf_pos);
+                    }
                     return;
                 }
                 // Case 4
@@ -181,7 +174,7 @@ namespace baihua {
             int leaf_pos = FindIndex(index);
             if (leaf_pos == -1) return std::move(result);
             Leaf leaf;
-            value_type data[L];
+            value_type data[L + 1];
             bool flag = false;
             while (leaf_pos != -1) {
                 memory_leaf.SingleRead(leaf, leaf_pos);
@@ -286,7 +279,7 @@ namespace baihua {
                 node = father.back();
                 father_info.pop_back();
                 father.pop_back();
-                for (int i = father_node.second + 1; i <= node.size; ++i) {
+                for (int i = node.size; i > father_node.second; --i) {
                     node.son[i + 1] = node.son[i];
                     node.key[i] = node.key[i - 1];
                 }
@@ -345,7 +338,7 @@ namespace baihua {
             Leaf pre_leaf;
             memory_leaf.SingleRead(pre_leaf, leaf.pre);
             if (pre_leaf.size > (L + 1) >> 1) {
-                value_type pre_data[L];
+                value_type pre_data[L + 1];
                 database.BlockRead(pre_data, pre_leaf.address);
                 --pre_leaf.size;
                 memory_leaf.SingleUpdate(pre_leaf, leaf.pre);
@@ -370,7 +363,7 @@ namespace baihua {
             Leaf next_leaf;
             memory_leaf.SingleRead(next_leaf, leaf.next);
             if (next_leaf.size > (L + 1) >> 1) {
-                value_type next_data[L];
+                value_type next_data[L + 1];
                 database.BlockRead(next_data, next_leaf.address);
                 data[leaf.size++] = next_data[0];
                 _father.key[father_node.second] = next_data[1];
@@ -393,7 +386,7 @@ namespace baihua {
         void LeafPreMerge(Leaf &leaf, const int leaf_pos, value_type *data) {
             Leaf pre_leaf;
             memory_leaf.SingleRead(pre_leaf, leaf.pre);
-            value_type pre_data[L];
+            value_type pre_data[L + 1];
             database.BlockRead(pre_data, pre_leaf.address);
             for (int i = 0, j = pre_leaf.size; i < leaf.size; ++i, ++j)
                 pre_data[j] = data[i];
@@ -412,7 +405,7 @@ namespace baihua {
         void LeafNextMerge(Leaf &leaf, const int leaf_pos, value_type *data) {
             Leaf next_leaf;
             memory_leaf.SingleRead(next_leaf, leaf.next);
-            value_type next_data[L];
+            value_type next_data[L + 1];
             database.BlockRead(next_data, next_leaf.address);
             for (int i = leaf.size, j = 0; j < next_leaf.size; ++i, ++j)
                 data[i] = next_data[j];
@@ -437,7 +430,7 @@ namespace baihua {
             Node pre_node;
             memory_node.SingleRead(pre_node, node.pre);
             if (pre_node.size + 1 > (M + 1) >> 1) {
-                for (int i = node.size - 1; i >= 0; --i) {
+                for (int i = node.size; i >= 0; --i) {
                     node.son[i + 1] = node.son[i];
                     if (i > 0) node.key[i] = node.key[i - 1];
                 }
@@ -448,6 +441,7 @@ namespace baihua {
                 ++node.size;
                 memory_node.SingleUpdate(pre_node, node.pre);
                 memory_node.SingleUpdate(node, node_pos);
+                memory_node.SingleUpdate(_father, father_node.first);
                 return true;
             } else return false;
         }
@@ -460,15 +454,18 @@ namespace baihua {
             Node next_node;
             memory_node.SingleRead(next_node, node.next);
             if (next_node.size + 1 > (L + 1) >> 1) {
-                node.key[node.size] = _father.key[father_node.second - 1];
+                node.key[node.size] = _father.key[father_node.second];
                 node.son[node.size + 1] = next_node.son[0];
-                _father.key[father_node.second - 1] = next_node.key[0];
+                _father.key[father_node.second] = next_node.key[0];
                 for (int i = 0; i < next_node.size; ++i) {
                     next_node.son[i] = next_node.son[i + 1];
                     if (i < next_node.size - 1) next_node.key[i] = next_node.key[i + 1];
                 }
+                ++node.size;
+                --next_node.size;
                 memory_node.SingleUpdate(node, node_pos);
                 memory_node.SingleUpdate(next_node, node.next);
+                memory_node.SingleUpdate(_father, father_node.first);
                 return true;
             } else return false;
         }
@@ -525,7 +522,7 @@ namespace baihua {
             while (father_info.size() > 1) {
                 int father_pos = father_info.back().first;
                 int father_index = father_info.back().second + if_next;
-                if_next = true;
+                if_pre = if_next = true;
                 father_info.pop_back();
                 Node node = father[father.size() - 1];
                 father.pop_back();
