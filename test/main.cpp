@@ -12,6 +12,9 @@ namespace baihua {
 int main() {
 //    freopen("../test/completeness/completeness.in", "r", stdin);
 //    freopen("../test/ans.out", "w", stdout);
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    std::cout.tie(nullptr);
     baihua::BPT<baihua::ConstLenStr<65>, int, baihua::CmpStr, baihua::CmpInt> memory("string64-int");
     int n, value;
     std::string instruction, buffer;
