@@ -3,12 +3,9 @@
 
 #include "Database.hpp"
 #include "../STLite-baihua/utility.hpp"
-//#include "../STLite-baihua/vector.hpp"
-#include <vector>
+#include "../STLite-baihua/vector.hpp"
 
 namespace baihua {
-
-    using std::vector;
 
     template<class Index, class Value, int (*CmpIndex)(const Index &, const Index &), int (*CmpValue)(const Value &,
                                                                                                       const Value &)>
@@ -17,8 +14,8 @@ namespace baihua {
         using value_type = pair<Index, Value, CmpIndex, CmpValue>;
 
     private:
-        static constexpr int M = 250;
-        static constexpr int L = 1270;
+        static constexpr int M = 150;
+        static constexpr int L = 760;
 
         struct Node {
             // one more for buffering

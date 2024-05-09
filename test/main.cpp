@@ -30,7 +30,7 @@ int main() {
     baihua::BPT<long long, int, baihua::CmpLongLong, baihua::CmpInt> memory("string64hash-int");
     int n, value;
     std::string instruction, index;
-    std::vector<int> result;
+    baihua::vector<int> result;
     std::cin >> n;
     for (int i = 1; i <= n; i++) {
         std::cin >> instruction;
