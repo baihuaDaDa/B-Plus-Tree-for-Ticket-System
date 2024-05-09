@@ -453,7 +453,7 @@ namespace baihua {
             if (father_node.second == _father.size) return if_next = false;
             Node next_node;
             memory_node.SingleRead(next_node, node.next);
-            if (next_node.size + 1 > (L + 1) >> 1) {
+            if (next_node.size + 1 > (M + 1) >> 1) {
                 node.key[node.size] = _father.key[father_node.second];
                 node.son[node.size + 1] = next_node.son[0];
                 _father.key[father_node.second] = next_node.key[0];

@@ -129,6 +129,16 @@ namespace baihua {
     }
 
     template<int length>
+    std::istream &operator>>(std::istream &in, ConstLenStr<length> &str1) {
+        in >> str1.str;
+        int i = 0;
+        for (i = 0; i < length; ++i)
+            if (str1.str[i] == '\0') break;
+        str1.size = i;
+        return in;
+    }
+
+    template<int length>
     int CmpStr(const ConstLenStr<length> &lhs, const ConstLenStr<length> &rhs) {
         int flag = std::strcmp(lhs.str, rhs.str);
         if (flag < 0) return -1;
