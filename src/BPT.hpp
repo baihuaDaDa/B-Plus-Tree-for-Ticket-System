@@ -17,8 +17,8 @@ namespace baihua {
         using value_type = pair<Index, Value, CmpIndex, CmpValue>;
 
     private:
-        static constexpr int M = 100;
-        static constexpr int L = 500;
+        static constexpr int M = 150;
+        static constexpr int L = 760;
 
         struct Node {
             // one more for buffering
