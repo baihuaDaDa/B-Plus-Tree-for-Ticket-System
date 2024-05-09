@@ -18,7 +18,7 @@ int main() {
     baihua::BPT<baihua::ConstLenStr<65>, int, baihua::CmpStr, baihua::CmpInt> memory("string64-int");
     int n, value;
     std::string instruction, buffer;
-    baihua::vector<int> result;
+    std::vector<int> result;
     std::cin >> n;
     for (int i = 1; i <= n; i++) {
         std::cin >> instruction;
