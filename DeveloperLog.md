@@ -71,4 +71,9 @@ Developer Log
 - *Fixed*: father nodes are not updated in `NodePreAdopt` and `NodeNextAdopt`, as they directly return in `DeleteAdjust`;
 - *Fixed*: some naive mistake in `NodeNextAdopt`, `father_node.second` instead of `father_node.second - 1`;
 - *Fixed*: there is misalignment when displacing data in `NodePreAdopt`.
+- *Fixed*: mistake `L` for `M`;
 - ***Congratulations!*** Pass all the test points!
+
+### 2024/5/9: Optimisation
+- Change the size of nodes and blocks;
+- Add `Hash` for `std::string`;
