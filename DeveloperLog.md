@@ -77,3 +77,7 @@ Developer Log
 ### 2024/5/9: Optimisation
 - Change the size of nodes and blocks;
 - Add `Hash` for `std::string`;
+
+### 2024/5/11: Optimisation
+- Merge the block of data into leaf, i.e., record `Leaf` and `data` in just one `struct Leaf`;
+- 

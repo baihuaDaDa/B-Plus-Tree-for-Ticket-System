@@ -34,10 +34,10 @@ namespace baihua {
         };
 
         struct Leaf {
-            int address = -1; // block_num
             int size = 0;
             int next = -1; // block_num
             int pre = -1; // block_num
+            value_type data[L + 1]; // one more element for buffering
 
             Leaf() = default;
 
@@ -52,16 +52,14 @@ namespace baihua {
         vector<pair<int, int>> father_info; // <position, index>
         Database<Node, 1, 1> memory_node; // record the position of the root, if none, return -1.
         Database<Leaf, 1, 1> memory_leaf; // record the position of the head node, if none, return -1.
-        Database<value_type, L + 1> database;
 
     public:
         BPT(const string &filename) : memory_node(filename + "_BptNode.bin"),
-                                      memory_leaf(filename + "_BptLeafNode.bin"), database(filename + ".bin") {
+                                      memory_leaf(filename + "_BptLeafNode.bin") {
 
             // Check if the file exist. If not, then initialise it.
             if (!memory_node.isFileExist()) memory_node.initialize(-1);
             if (!memory_leaf.isFileExist()) memory_leaf.initialize(-1);
-            if (!database.isFileExist()) database.initialize();
             memory_node.ReadInfo(root_pos, 1);
             memory_leaf.ReadInfo(head_pos, 1);
         }
@@ -77,34 +75,26 @@ namespace baihua {
             int leaf_pos = FindElement(element);
             if (leaf_pos == -1) {
                 Leaf new_leaf{1, -1, -1};
-                value_type data[L + 1];
-                data[0] = element;
-                new_leaf.address = head_pos = database.BlockAppend(data);
+                new_leaf.data[0] = element;
+                head_pos = memory_leaf.SingleAppend(new_leaf);
                 memory_leaf.WriteInfo(head_pos, 1);
-                memory_leaf.SingleAppend(new_leaf);
                 return;
             }
             Leaf leaf;
             memory_leaf.SingleRead(leaf, leaf_pos);
-            value_type data[L + 1];
-            database.BlockRead(data, leaf.address);
-            int elem_pos = BinarySearchLastSmaller(element, data, leaf.size);
-            if (elem_pos >= 0 && CmpPair(element, data[elem_pos]) == 0) return; // Case 2
+            int elem_pos = BinarySearchLastSmaller(element, leaf.data, leaf.size);
+            if (elem_pos >= 0 && CmpPair(element, leaf.data[elem_pos]) == 0) return; // Case 2
             for (int i = leaf.size - 1; i >= elem_pos + 1; --i)
-                data[i + 1] = data[i];
+                leaf.data[i + 1] = leaf.data[i];
             ++leaf.size;
-            data[elem_pos + 1] = element;
+            leaf.data[elem_pos + 1] = element;
             if (leaf.size <= L) { // Case 1
-                database.BlockUpdate(data, leaf.address);
                 memory_leaf.SingleUpdate(leaf, leaf_pos);
             } else { // Case 3
-                value_type new_block_data[L + 1] = {};
                 leaf.size = ((L + 1) >> 1);
                 Leaf new_leaf{L + 1 - leaf.size, leaf_pos, leaf.next};
                 for (int i = leaf.size, j = 0; i < L + 1; ++i, ++j)
-                    new_block_data[j] = data[i];
-                new_leaf.address = database.BlockAppend(new_block_data);
-                database.BlockUpdate(data, leaf.address);
+                    new_leaf.data[j] = leaf.data[i];
                 leaf.next = memory_leaf.SingleAppend(new_leaf);
                 memory_leaf.SingleUpdate(leaf, leaf_pos);
                 if (new_leaf.next != -1) {
@@ -114,7 +104,7 @@ namespace baihua {
                     memory_leaf.SingleUpdate(next_leaf, new_leaf.next);
                 }
                 // Case 4
-                InsertAdjust(leaf_pos, leaf.next, new_block_data[0]);
+                InsertAdjust(leaf_pos, leaf.next, new_leaf.data[0]);
             }
         }
 
@@ -131,16 +121,13 @@ namespace baihua {
             int leaf_pos = FindElement(element);
             Leaf leaf;
             memory_leaf.SingleRead(leaf, leaf_pos);
-            value_type data[L + 1];
-            database.BlockRead(data, leaf.address);
-            int elem_pos = BinarySearchLastSmaller(element, data, leaf.size);
-            if (elem_pos < 0 || CmpPair(element, data[elem_pos]) != 0) return; // Case 1
+            int elem_pos = BinarySearchLastSmaller(element, leaf.data, leaf.size);
+            if (elem_pos < 0 || CmpPair(element, leaf.data[elem_pos]) != 0) return; // Case 1
             --leaf.size;
-            if (elem_pos == 0) UpdateKey(data[1]);
+            if (elem_pos == 0) UpdateKey(leaf.data[1]);
             for (int i = elem_pos; i < leaf.size; ++i)
-                data[i] = data[i + 1];
+                leaf.data[i] = leaf.data[i + 1];
             if (leaf.size >= ((L + 1) >> 1)) { // Case 2
-                database.BlockUpdate(data, leaf.address);
                 memory_leaf.SingleUpdate(leaf, leaf_pos);
             } else {
                 // Case 3
@@ -149,18 +136,17 @@ namespace baihua {
                         head_pos = -1;
                         memory_leaf.WriteInfo(head_pos, 1);
                     } else {
-                        database.BlockUpdate(data, leaf.address);
                         memory_leaf.SingleUpdate(leaf, leaf_pos);
                     }
                     return;
                 }
                 // Case 4
                 bool if_pre = true, if_next = true;
-                if (LeafPreAdopt(leaf, leaf_pos, data, if_pre)) return;
-                if (LeafNextAdopt(leaf, leaf_pos, data, if_next)) return;
+                if (LeafPreAdopt(leaf, leaf_pos, if_pre)) return;
+                if (LeafNextAdopt(leaf, leaf_pos, if_next)) return;
                 // Case 5
-                if (if_next) LeafNextMerge(leaf, leaf_pos, data);
-                else LeafPreMerge(leaf, leaf_pos, data);
+                if (if_next) LeafNextMerge(leaf, leaf_pos);
+                else LeafPreMerge(leaf, leaf_pos);
                 // Case 6
                 DeleteAdjust(if_next);
             }
@@ -171,19 +157,17 @@ namespace baihua {
             int leaf_pos = FindIndex(index);
             if (leaf_pos == -1) return std::move(result);
             Leaf leaf;
-            value_type data[L + 1];
             bool flag = false;
             while (leaf_pos != -1) {
                 memory_leaf.SingleRead(leaf, leaf_pos);
-                database.BlockRead(data, leaf.address);
-                int index_pos = BinarySearchFirstBigger(index, data, leaf.size);
+                int index_pos = BinarySearchFirstBigger(index, leaf.data, leaf.size);
                 if (index_pos == leaf.size) {
                     if (flag) return std::move(result);
                     else flag = true;
                 } else {
                     for (int i = index_pos; i < leaf.size; ++i) {
-                        if (CmpIndex(data[i].first, index) == 0)
-                            result.push_back(data[i].second);
+                        if (CmpIndex(leaf.data[i].first, index) == 0)
+                            result.push_back(leaf.data[i].second);
                         else return std::move(result);
                     }
                 }
@@ -328,31 +312,28 @@ namespace baihua {
         }
 
         // Adopt children from the appropriate neighbour blocks, if not, return false.
-        bool LeafPreAdopt(Leaf &leaf, const int leaf_pos, value_type *data, bool &if_pre) {
+        bool LeafPreAdopt(Leaf &leaf, const int leaf_pos, bool &if_pre) {
             if (leaf.pre == -1) return if_pre = false;
             pair<int, int> father_node = father_info.back();
             if (father_node.second == 0) return if_pre = false;
             Leaf pre_leaf;
             memory_leaf.SingleRead(pre_leaf, leaf.pre);
             if (pre_leaf.size > (L + 1) >> 1) {
-                value_type pre_data[L + 1];
-                database.BlockRead(pre_data, pre_leaf.address);
                 --pre_leaf.size;
                 memory_leaf.SingleUpdate(pre_leaf, leaf.pre);
                 ++leaf.size;
                 for (int i = leaf.size - 1; i >= 1; --i)
-                    data[i] = data[i - 1];
-                data[0] = pre_data[pre_leaf.size];
+                    leaf.data[i] = leaf.data[i - 1];
+                leaf.data[0] = pre_leaf.data[pre_leaf.size];
                 Node &_father = father[father.size() - 1];
-                _father.key[father_node.second - 1] = data[0];
-                database.BlockUpdate(data, leaf.address);
+                _father.key[father_node.second - 1] = leaf.data[0];
                 memory_leaf.SingleUpdate(leaf, leaf_pos);
                 memory_node.SingleUpdate(_father, father_node.first);
                 return true;
             } else return false;
         }
 
-        bool LeafNextAdopt(Leaf &leaf, const int leaf_pos, value_type *data, bool &if_next) {
+        bool LeafNextAdopt(Leaf &leaf, const int leaf_pos, bool &if_next) {
             if (leaf.next == -1) return if_next = false;
             pair<int, int> father_node = father_info.back();
             Node &_father = father[father.size() - 1];
@@ -360,16 +341,12 @@ namespace baihua {
             Leaf next_leaf;
             memory_leaf.SingleRead(next_leaf, leaf.next);
             if (next_leaf.size > (L + 1) >> 1) {
-                value_type next_data[L + 1];
-                database.BlockRead(next_data, next_leaf.address);
-                data[leaf.size++] = next_data[0];
-                _father.key[father_node.second] = next_data[1];
+                leaf.data[leaf.size++] = next_leaf.data[0];
+                _father.key[father_node.second] = next_leaf.data[1];
                 --next_leaf.size;
                 for (int i = 0; i < next_leaf.size; ++i)
-                    next_data[i] = next_data[i + 1];
-                database.BlockUpdate(data, leaf.address);
+                    next_leaf.data[i] = next_leaf.data[i + 1];
                 memory_leaf.SingleUpdate(leaf, leaf_pos);
-                database.BlockUpdate(next_data, next_leaf.address);
                 memory_leaf.SingleUpdate(next_leaf, leaf.next);
                 memory_node.SingleUpdate(_father, father_node.first);
                 return true;
@@ -380,13 +357,11 @@ namespace baihua {
          * Pay attention to merge the next node into the previous node
          * so that we needn't update @head_pos in the file.
          **/
-        void LeafPreMerge(Leaf &leaf, const int leaf_pos, value_type *data) {
+        void LeafPreMerge(Leaf &leaf, const int leaf_pos) {
             Leaf pre_leaf;
             memory_leaf.SingleRead(pre_leaf, leaf.pre);
-            value_type pre_data[L + 1];
-            database.BlockRead(pre_data, pre_leaf.address);
             for (int i = 0, j = pre_leaf.size; i < leaf.size; ++i, ++j)
-                pre_data[j] = data[i];
+                pre_leaf.data[j] = leaf.data[i];
             pre_leaf.size += leaf.size;
             pre_leaf.next = leaf.next;
             if (leaf.next != -1) {
@@ -396,16 +371,13 @@ namespace baihua {
                 memory_leaf.SingleUpdate(next_leaf, leaf.next);
             }
             memory_leaf.SingleUpdate(pre_leaf, leaf.pre);
-            database.BlockUpdate(pre_data, pre_leaf.address);
         }
 
-        void LeafNextMerge(Leaf &leaf, const int leaf_pos, value_type *data) {
+        void LeafNextMerge(Leaf &leaf, const int leaf_pos) {
             Leaf next_leaf;
             memory_leaf.SingleRead(next_leaf, leaf.next);
-            value_type next_data[L + 1];
-            database.BlockRead(next_data, next_leaf.address);
             for (int i = leaf.size, j = 0; j < next_leaf.size; ++i, ++j)
-                data[i] = next_data[j];
+                leaf.data[i] = next_leaf.data[j];
             leaf.size += next_leaf.size;
             leaf.next = next_leaf.next;
             if (leaf.next != -1) {
@@ -415,7 +387,6 @@ namespace baihua {
                 memory_leaf.SingleUpdate(_next_leaf, leaf.next);
             }
             memory_leaf.SingleUpdate(leaf, leaf_pos);
-            database.BlockUpdate(data, leaf.address);
         }
 
         // Adopt keys from the appropriate neighbour nodes, if not, return false.
