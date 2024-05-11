@@ -80,4 +80,4 @@ Developer Log
 
 ### 2024/5/11: Optimisation
 - Merge the block of data into leaf, i.e., record `Leaf` and `data` in just one `struct Leaf`;
-- 
+- Remove the records of `Node::pre`, `Node::next`, `Leaf::pre`;

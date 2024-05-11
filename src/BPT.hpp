@@ -23,25 +23,21 @@ namespace baihua {
             int son[M + 1] = {}; // 0-base, index instead of address (when upon the leaf, index in memory_leaf)
             int size = 0; // the number of the keys
             bool is_upon_leaf = false;
-            int pre;
-            int next;
 
             Node() = default;
 
-            Node(int _size, bool _is_upon_leaf, int _pre, int _next)
-                    : size(_size), is_upon_leaf(_is_upon_leaf), pre(_pre), next(_next) {}
+            Node(int _size, bool _is_upon_leaf) : size(_size), is_upon_leaf(_is_upon_leaf) {}
 
         };
 
         struct Leaf {
             int size = 0;
             int next = -1; // block_num
-            int pre = -1; // block_num
             value_type data[L + 1]; // one more element for buffering
 
             Leaf() = default;
 
-            Leaf(int _size, int _pre, int _next) : size(_size), pre(_pre), next(_next) {}
+            Leaf(int _size, int _next) : size(_size), next(_next) {}
 
         };
 
@@ -74,7 +70,7 @@ namespace baihua {
             value_type element{index, value};
             int leaf_pos = FindElement(element);
             if (leaf_pos == -1) {
-                Leaf new_leaf{1, -1, -1};
+                Leaf new_leaf{1, -1};
                 new_leaf.data[0] = element;
                 head_pos = memory_leaf.SingleAppend(new_leaf);
                 memory_leaf.WriteInfo(head_pos, 1);
@@ -92,17 +88,11 @@ namespace baihua {
                 memory_leaf.SingleUpdate(leaf, leaf_pos);
             } else { // Case 3
                 leaf.size = ((L + 1) >> 1);
-                Leaf new_leaf{L + 1 - leaf.size, leaf_pos, leaf.next};
+                Leaf new_leaf{L + 1 - leaf.size, leaf.next};
                 for (int i = leaf.size, j = 0; i < L + 1; ++i, ++j)
                     new_leaf.data[j] = leaf.data[i];
                 leaf.next = memory_leaf.SingleAppend(new_leaf);
                 memory_leaf.SingleUpdate(leaf, leaf_pos);
-                if (new_leaf.next != -1) {
-                    Leaf next_leaf;
-                    memory_leaf.SingleRead(next_leaf, new_leaf.next);
-                    next_leaf.pre = leaf.next;
-                    memory_leaf.SingleUpdate(next_leaf, new_leaf.next);
-                }
                 // Case 4
                 InsertAdjust(leaf_pos, leaf.next, new_leaf.data[0]);
             }
@@ -131,18 +121,16 @@ namespace baihua {
                 memory_leaf.SingleUpdate(leaf, leaf_pos);
             } else {
                 // Case 3
-                if (leaf.pre == -1 && leaf.next == -1) {
+                if (leaf_pos == head_pos && leaf.next == -1) {
                     if (leaf.size == 0) {
                         head_pos = -1;
                         memory_leaf.WriteInfo(head_pos, 1);
-                    } else {
-                        memory_leaf.SingleUpdate(leaf, leaf_pos);
-                    }
+                    } else memory_leaf.SingleUpdate(leaf, leaf_pos);
                     return;
                 }
                 // Case 4
-                bool if_pre = true, if_next = true;
-                if (LeafPreAdopt(leaf, leaf_pos, if_pre)) return;
+                bool if_next = true;
+                if (LeafPreAdopt(leaf, leaf_pos)) return;
                 if (LeafNextAdopt(leaf, leaf_pos, if_next)) return;
                 // Case 5
                 if (if_next) LeafNextMerge(leaf, leaf_pos);
@@ -268,7 +256,7 @@ namespace baihua {
                 node.key[father_node.second] = key;
                 ++node.size;
                 if (node.size == M) {
-                    Node new_node{M >> 1, node.is_upon_leaf, father_node.first, node.next};
+                    Node new_node{M >> 1, node.is_upon_leaf};
                     node.size = M - new_node.size - 1;
                     for (int i = node.size + 1, j = 0; i < M; ++i, ++j) {
                         new_node.key[j] = node.key[i];
@@ -278,14 +266,7 @@ namespace baihua {
                     key = node.key[node.size];
                     son_pos = father_node.first;
                     new_son_pos = memory_node.SingleAppend(new_node);
-                    node.next = new_son_pos;
                     memory_node.SingleUpdate(node, father_node.first);
-                    if (new_node.next != -1) {
-                        Node next_node;
-                        memory_node.SingleRead(next_node, new_node.next);
-                        next_node.pre = node.next;
-                        memory_node.SingleUpdate(next_node, new_node.next);
-                    }
                 } else {
                     memory_node.SingleUpdate(node, father_node.first);
                     flag = true;
@@ -293,7 +274,7 @@ namespace baihua {
                 }
             }
             if (flag) return;
-            Node new_root{1, (father_node.first == -1), -1, -1};
+            Node new_root{1, (father_node.first == -1)};
             new_root.key[0] = key;
             new_root.son[0] = son_pos;
             new_root.son[1] = new_son_pos;
@@ -312,20 +293,20 @@ namespace baihua {
         }
 
         // Adopt children from the appropriate neighbour blocks, if not, return false.
-        bool LeafPreAdopt(Leaf &leaf, const int leaf_pos, bool &if_pre) {
-            if (leaf.pre == -1) return if_pre = false;
+        bool LeafPreAdopt(Leaf &leaf, const int leaf_pos) {
             pair<int, int> father_node = father_info.back();
-            if (father_node.second == 0) return if_pre = false;
+            if (father_node.second == 0) return false;
+            Node &_father = father[father.size() - 1];
+            int pre_pos = _father.son[father_node.second - 1];
             Leaf pre_leaf;
-            memory_leaf.SingleRead(pre_leaf, leaf.pre);
+            memory_leaf.SingleRead(pre_leaf, pre_pos);
             if (pre_leaf.size > (L + 1) >> 1) {
                 --pre_leaf.size;
-                memory_leaf.SingleUpdate(pre_leaf, leaf.pre);
+                memory_leaf.SingleUpdate(pre_leaf, pre_pos);
                 ++leaf.size;
                 for (int i = leaf.size - 1; i >= 1; --i)
                     leaf.data[i] = leaf.data[i - 1];
                 leaf.data[0] = pre_leaf.data[pre_leaf.size];
-                Node &_father = father[father.size() - 1];
                 _father.key[father_node.second - 1] = leaf.data[0];
                 memory_leaf.SingleUpdate(leaf, leaf_pos);
                 memory_node.SingleUpdate(_father, father_node.first);
@@ -334,7 +315,6 @@ namespace baihua {
         }
 
         bool LeafNextAdopt(Leaf &leaf, const int leaf_pos, bool &if_next) {
-            if (leaf.next == -1) return if_next = false;
             pair<int, int> father_node = father_info.back();
             Node &_father = father[father.size() - 1];
             if (father_node.second == _father.size) return if_next = false;
@@ -358,19 +338,14 @@ namespace baihua {
          * so that we needn't update @head_pos in the file.
          **/
         void LeafPreMerge(Leaf &leaf, const int leaf_pos) {
+            int pre_pos = father.back().son[father_info.back().second - 1];
             Leaf pre_leaf;
-            memory_leaf.SingleRead(pre_leaf, leaf.pre);
+            memory_leaf.SingleRead(pre_leaf, pre_pos);
             for (int i = 0, j = pre_leaf.size; i < leaf.size; ++i, ++j)
                 pre_leaf.data[j] = leaf.data[i];
             pre_leaf.size += leaf.size;
             pre_leaf.next = leaf.next;
-            if (leaf.next != -1) {
-                Leaf next_leaf;
-                memory_leaf.SingleRead(next_leaf, leaf.next);
-                next_leaf.pre = leaf.pre;
-                memory_leaf.SingleUpdate(next_leaf, leaf.next);
-            }
-            memory_leaf.SingleUpdate(pre_leaf, leaf.pre);
+            memory_leaf.SingleUpdate(pre_leaf, pre_pos);
         }
 
         void LeafNextMerge(Leaf &leaf, const int leaf_pos) {
@@ -380,23 +355,17 @@ namespace baihua {
                 leaf.data[i] = next_leaf.data[j];
             leaf.size += next_leaf.size;
             leaf.next = next_leaf.next;
-            if (leaf.next != -1) {
-                Leaf _next_leaf;
-                memory_leaf.SingleRead(_next_leaf, leaf.next);
-                _next_leaf.pre = leaf_pos;
-                memory_leaf.SingleUpdate(_next_leaf, leaf.next);
-            }
             memory_leaf.SingleUpdate(leaf, leaf_pos);
         }
 
         // Adopt keys from the appropriate neighbour nodes, if not, return false.
-        bool NodePreAdopt(Node &node, const int node_pos, bool &if_pre) {
-            if (node.pre == -1) return if_pre = false;
-            Node &_father = father[father.size() - 1];
+        bool NodePreAdopt(Node &node, const int node_pos) {
             pair<int, int> father_node = father_info.back();
-            if (father_node.second == 0) return if_pre = false;
+            if (father_node.second == 0) return false;
+            Node &_father = father[father.size() - 1];
+            int pre_pos = _father.son[father_node.second - 1];
             Node pre_node;
-            memory_node.SingleRead(pre_node, node.pre);
+            memory_node.SingleRead(pre_node, pre_pos);
             if (pre_node.size + 1 > (M + 1) >> 1) {
                 for (int i = node.size; i >= 0; --i) {
                     node.son[i + 1] = node.son[i];
@@ -407,7 +376,7 @@ namespace baihua {
                 _father.key[father_node.second - 1] = pre_node.key[pre_node.size - 1];
                 --pre_node.size;
                 ++node.size;
-                memory_node.SingleUpdate(pre_node, node.pre);
+                memory_node.SingleUpdate(pre_node, pre_pos);
                 memory_node.SingleUpdate(node, node_pos);
                 memory_node.SingleUpdate(_father, father_node.first);
                 return true;
@@ -415,12 +384,12 @@ namespace baihua {
         }
 
         bool NodeNextAdopt(Node &node, const int node_pos, bool &if_next) {
-            if (node.next == -1) return if_next = false;
             Node &_father = father[father.size() - 1];
             pair<int, int> father_node = father_info.back();
             if (father_node.second == _father.size) return if_next = false;
+            int next_pos = _father.son[father_node.second + 1];
             Node next_node;
-            memory_node.SingleRead(next_node, node.next);
+            memory_node.SingleRead(next_node, next_pos);
             if (next_node.size + 1 > (M + 1) >> 1) {
                 node.key[node.size] = _father.key[father_node.second];
                 node.son[node.size + 1] = next_node.son[0];
@@ -432,7 +401,7 @@ namespace baihua {
                 ++node.size;
                 --next_node.size;
                 memory_node.SingleUpdate(node, node_pos);
-                memory_node.SingleUpdate(next_node, node.next);
+                memory_node.SingleUpdate(next_node, next_pos);
                 memory_node.SingleUpdate(_father, father_node.first);
                 return true;
             } else return false;
@@ -444,8 +413,9 @@ namespace baihua {
          * so that we can easily find the ancestors of the erased node to modify the corresponding key.
          **/
         void NodePreMerge(Node &node, const int node_pos) {
+            int pre_pos = father.back().son[father_info.back().second - 1];
             Node pre_node;
-            memory_node.SingleRead(pre_node, node.pre);
+            memory_node.SingleRead(pre_node, pre_pos);
             Node &_father = father[father.size() - 1];
             pair<int, int> father_node = father_info.back();
             for (int i = 0, j = pre_node.size + 1; i <= node.size; ++i, ++j) {
@@ -454,19 +424,13 @@ namespace baihua {
             }
             pre_node.key[pre_node.size] = _father.key[father_node.second - 1];
             pre_node.size += node.size + 1;
-            pre_node.next = node.next;
-            if (node.next != -1) {
-                Node next_node;
-                memory_node.SingleRead(next_node, node.next);
-                next_node.pre = node.pre;
-                memory_node.SingleUpdate(next_node, node.next);
-            }
-            memory_node.SingleUpdate(pre_node, node.pre);
+            memory_node.SingleUpdate(pre_node, pre_pos);
         }
 
         void NodeNextMerge(Node &node, const int node_pos) {
+            int next_pos = father.back().son[father_info.back().second + 1];
             Node next_node;
-            memory_node.SingleRead(next_node, node.next);
+            memory_node.SingleRead(next_node, next_pos);
             Node &_father = father[father.size() - 1];
             pair<int, int> father_node = father_info.back();
             for (int i = node.size + 1, j = 0; j <= next_node.size; ++i, ++j) {
@@ -475,22 +439,15 @@ namespace baihua {
             }
             node.key[node.size] = _father.key[father_node.second];
             node.size += next_node.size + 1;
-            node.next = next_node.next;
-            if (node.next != -1) {
-                Node _next_node;
-                memory_node.SingleRead(_next_node, node.next);
-                _next_node.pre = node_pos;
-                memory_node.SingleUpdate(_next_node, node.next);
-            }
             memory_node.SingleUpdate(node, node_pos);
         }
 
         void DeleteAdjust(bool if_next) {
-            bool if_pre = true, flag = false;
+            bool flag = false;
             while (father_info.size() > 1) {
                 int father_pos = father_info.back().first;
                 int father_index = father_info.back().second + if_next;
-                if_pre = if_next = true;
+                if_next = true;
                 father_info.pop_back();
                 Node node = father[father.size() - 1];
                 father.pop_back();
@@ -500,7 +457,7 @@ namespace baihua {
                 }
                 --node.size;
                 if (node.size + 1 < (M + 1) >> 1) {
-                    if (NodePreAdopt(node, father_pos, if_pre)) return;
+                    if (NodePreAdopt(node, father_pos)) return;
                     if (NodeNextAdopt(node, father_pos, if_next)) return;
                     if (if_next) NodeNextMerge(node, father_pos);
                     else NodePreMerge(node, father_pos);
